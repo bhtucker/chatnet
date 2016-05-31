@@ -10,6 +10,12 @@ class Pipeline(object):
     """
     Transformer helper functions and state checkpoints
     to go from text data/labels to model-ready numeric data
+
+    positive_class =
+        desired label for label identification
+        "scores" for regression on CSAT scores
+        "satisfaction" for binary satisfaction based on CSAT scores [threshold is >3 = satisfied]
+
     """
     def __init__(self, vocab_size=15000, value_filter=None,
                  data_col=None, id_col=None, label_col=None,
@@ -24,18 +30,19 @@ class Pipeline(object):
         self.prepend_sender = prepend_sender
         self.message_key = message_key or 'msgs'
 
+
         # label processing
         self.label_filter = lambda v: True if not strict_binary else v in binary_options
         self.positive_class = positive_class
 
         # vocab processing
-        self.vocab_size=vocab_size        
+        self.vocab_size=vocab_size
         self.word_index_kwargs = dict(nb_words=vocab_size)
         self.to_matrices_kwargs = kwargs
 
         if df is not None:
             self.setup(df)
- 
+
     def _tokenize(self, df, message_key=''):
         if not message_key:
             cols = gather.get_message_cols(df)
@@ -61,9 +68,9 @@ class Pipeline(object):
         self.tp = prep.TextPrepper()
 
         self.data = data = pd.DataFrame(label_filtered_df[
-            [self.data_col, self.id_col, self.label_col]
-            ])
-        
+            [self.data_col, self.id_col, self.label_col]])
+
+
         logger.info("Counting words...")
 
         self.word_counts = prep.get_word_counts(data[self.data_col], self.tp)
@@ -83,7 +90,7 @@ class Pipeline(object):
 
         self.learning_data = (X_train, y_train, train_ids), (X_test, y_test, test_ids) = \
             self.tp.to_matrices(self.data, self.word_index, **to_matrices_kwargs)
-
+        
     def setup(self, df):
         self._set_token_data(df)
         self._set_vocabulary()

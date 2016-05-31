@@ -92,11 +92,6 @@ def get_pca_mats(learning_data, pca):
     return pca.transform(x_train), pca.transform(x_test)
 
 
-def split_learning_data(x_data, y_data, ids, split_ratio=.2):
-    cutoff = int(math.ceil(len(x_data) * (1 - split_ratio)))
-    return (x_data[:cutoff], y_data[:cutoff], ids[:cutoff]), (x_data[cutoff:], y_data[cutoff:], ids[cutoff:])
-
-
 class SVMPipeline(Pipeline):
     captured_kwargs = {'pca_dims', 'probability', 'cache_size', 'df'}
     persisted_attrs = {'svc', 'pca', 'word_index'}
@@ -126,4 +121,47 @@ class SVMPipeline(Pipeline):
         return (self.svc.predict_proba(x_pca), ids)
 
 
+def train_pca_regressor(learning_data, pca_dims, features=[], regressorclass, **regressor_kwargs):
+    (X_train, y_train, train_ids), (X_test, y_test, test_ids) = learning_data
 
+    # features: list of row feature values, length is train_len + test_len 
+    pca = TruncatedSVD(n_components=pca_dims)
+    n_symbols = max(
+        np.max(X_train) + 1, np.max(X_test) + 1
+    )
+    logger.info("Forming CSR Matrices")
+    x_train, x_test = create_csr_matrix(X_train, n_symbols), create_csr_matrix(X_test, n_symbols)
+    logger.info("Starting PCA")
+    # pseudo-supervised PCA: fit on positive class only
+    pca = pca.fit(x_train[y_train > np.mean(y_train)])
+
+    x_train_pca = pca.transform(x_train)
+    x_test_pca = pca.transform(x_test)
+    
+    logger.info("Starting Regression")
+
+    reg = regressorclass(**regressor_kwargs)
+    reg.fit(x_train_pca, y_train)
+    logger.info("Scoring SVM")
+    try:
+        score = reg.score(x_test_pca, y_test)
+    except ValueError:
+        score = None
+    logger.info(score)
+    reg.test_score = score
+    pca.n_symbols = n_symbols
+
+    return reg, pca, x_train_pca, x_test_pca
+
+# def plot_predictions(learning_data, regress_rvs, factorplot=False):
+#     reg, pca, x_train_pca, x_test_pca = regress_rvs
+#     preds = reg.predict(x_test_pca)
+#     truth = learning_data[1][1]
+#     pred_df = pd.DataFrame(preds, columns=['pred'])
+#     pred_df['truth'] = truth
+#     if factorplot:
+#         sns.factorplot(x='truth', y='pred', data=pred_df)
+#         plt.show()
+#     else:
+#         pred_df.plot(kind='scatter', x='pred', y='truth')
+#         plt.show()
