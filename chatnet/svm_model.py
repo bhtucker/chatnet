@@ -2,7 +2,7 @@
 """
     svm_model
     ~~~~~~~~
- 
+
     SVM models for comparison
 """
 from chatnet.pipes import Pipeline
