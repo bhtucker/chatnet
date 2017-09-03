@@ -14,11 +14,11 @@ from sklearn.preprocessing import LabelEncoder
 
 numeric_pat = re.compile('.*[\d].*')
 caps_pat = re.compile('.*[A-Z].*')
-GLOVE_VEC_TEMPLATE = os.env.get(
+GLOVE_VEC_TEMPLATE = os.environ.get(
     'GLOVE_VEC_TEMPLATE',
     '~/chatnet/glove.twitter.27B/glove.twitter.27B.{dimensions}d.txt')
 
-GLOVE_DIMS = {25, 50, 200}
+GLOVE_DIMS = {25, 50}
 
 
 class TextPrepper(object):
@@ -49,8 +49,8 @@ class TextPrepper(object):
         else:
             return '$digit'
 
-    def to_matrices(self, df, word_index, id_col='Chat Session ID', label_col='Chat Type',
-                    data_col='msgs', positive_class='product', seed=133, test_split=.2, **kwargs):
+    def to_matrices(self, df, word_index, id_col='id', label_col='Chat Type',
+                    data_col='msgs', positive_class=None, seed=133, test_split=.2, **kwargs):
         """
         Using :df and :word_index, return training and test data
 
@@ -65,7 +65,7 @@ class TextPrepper(object):
             labels = np_utils.to_categorical(le.fit_transform(df[label_col]))
         else:
             labels = df[label_col].map(lambda v: 1 if v == positive_class else 0)
-        labels = zip(ids, labels)
+        labels = list(zip(ids, labels))
         X = df[data_col].tolist()
 
         np.random.seed(seed)
@@ -118,7 +118,7 @@ class TextPrepper(object):
         for x, label in zip(X, labels):
             # x is the whole observation
             l = len(x)
-            clean_x = map(self.cleaner, x)
+            clean_x = list(map(self.cleaner, x))
             index_representation = [
                 word_index[w] + self.index_from
                 if w in word_index
@@ -127,14 +127,14 @@ class TextPrepper(object):
             ]
 
             chunk_idx = 0
-            for start in (range(0, l - chunk_size, chunk_size / chunk_overlap_ratio) or [0]):
+            for start in (range(0, l - chunk_size, int(chunk_size / chunk_overlap_ratio)) or [0]):
                 chunk_idx += 1
                 chunk = [self.start_char] + index_representation[start:start + chunk_size]
                 pad_size = (chunk_size - len(chunk) + 1)  # add a one due to start_char
                 padded = [self.pad_char] * pad_size + chunk
                 if (
                     sum(c == self.oov_char for c in padded) > ((chunk_size - pad_size) / max_dummy_ratio)
-                    or
+                    or  # noqa
                     all([c in self.special_chars for c in chunk])
                 ):
                     skipped += 1

@@ -10,12 +10,10 @@ class Pipeline(object):
     """
     Transformer helper functions and state checkpoints
     to go from text data/labels to model-ready numeric data
-
-
     """
     def __init__(self, vocab_size=15000,
                  data_col=None, id_col=None, label_col=None, skip_top=10,
-                 positive_class='product', df=None, message_key=None, **kwargs
+                 positive_class=None, df=None, message_key=None, **kwargs
                  ):
 
         # message processing
@@ -45,18 +43,13 @@ class Pipeline(object):
         Iterate over each row's messages (as specified by message_key),
         tokenizing by ' ' and cleaning with self.tp.cleaner
         """
-        if isinstance(message_key, (unicode, str)):
-            message_generator = get_message_generator(message_key, kind='dense')
-        elif isinstance(message_key, list):
-            message_generator = get_message_generator(message_key, kind='wide')
-
-        def mapper(row):
+        def mapper(message_col):
             sequence = []
-            for message in message_generator(row):
+            for message in message_col:
                 sequence += map(self.tp.cleaner, message.split())
             return sequence
 
-        df[self.data_col] = df.apply(mapper, axis=1)
+        df[self.data_col] = df[message_key].map(mapper)
 
     def _set_token_data(self, input_df):
         df = input_df.copy()
@@ -100,7 +93,7 @@ class Pipeline(object):
         def increment(word):
             word_counts[word] += 1
 
-        self.data[self.data_col].map(lambda r: map(increment, r))
+        self.data[self.data_col].map(lambda r: list(map(increment, r)))
 
         self.word_counts = word_counts
 

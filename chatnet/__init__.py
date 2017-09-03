@@ -2,7 +2,7 @@
 """
     chatnet
     ~~~~~~~
- 
+
     package
 """
 import logging

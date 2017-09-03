@@ -21,7 +21,7 @@ def get_long_description():
 
 setup(
     name='Chatnet',
-    version='0.0.1',
+    version='0.1.0',
     url='https://github.com/bhtucker/chatnet',
     author='Benson Tucker',
     author_email='bensontucker@gmail.com',

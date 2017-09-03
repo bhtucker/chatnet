@@ -18,7 +18,7 @@ from sklearn.svm import SVC
 
 def sequence_to_csr(row):
     bow_counts = Counter(row)
-    for word_ix, ct in bow_counts.iteritems():
+    for word_ix, ct in bow_counts.items():
         yield (word_ix, ct)
 
 
@@ -38,7 +38,7 @@ def create_csr_matrix(x_train, n_symbols, skip_top=3):
             rows.append(data_ix)
             cols.append(word_ix)
             vals.append(ct)
-    
+
     return sparse.csr_matrix(
         (np.array(vals), (np.array(rows), np.array(cols))),
         shape=(len(x_train), n_symbols)
@@ -100,8 +100,9 @@ def split_learning_data(x_data, y_data, ids, split_ratio=.2):
 class SVMPipeline(Pipeline):
     captured_kwargs = {'pca_dims', 'probability', 'cache_size', 'df'}
     persisted_attrs = {'svc', 'pca', 'word_index'}
+
     def __init__(self, *args, **kwargs):
-        super_kwargs = {k: v for k, v in kwargs.iteritems() if k not in self.captured_kwargs}
+        super_kwargs = {k: v for k, v in kwargs.items() if k not in self.captured_kwargs}
         super(SVMPipeline, self).__init__(**super_kwargs)
         self.pca_dims = kwargs.get('pca_dims', 500)
         self.probability = kwargs.get('probability', True)
@@ -120,10 +121,8 @@ class SVMPipeline(Pipeline):
         self._set_token_data(new_df)
         self._set_learning_data(test_split=0., max_dummy_ratio=1)
         (X, y, ids), _ = self.learning_data
+
         if len(X) == 0:
             return None
         x_pca = self.pca.transform(create_csr_matrix(X, self.pca.n_symbols))
         return (self.svc.predict_proba(x_pca), ids)
-
-
-

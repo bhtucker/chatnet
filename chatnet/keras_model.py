@@ -5,7 +5,7 @@ from keras.models import Sequential, model_from_json
 from keras.layers.core import Dense, Dropout, Activation
 from keras.layers.embeddings import Embedding
 from keras.layers.recurrent import GRU
-from keras.layers.convolutional import Convolution1D, MaxPooling1D
+from keras.layers.convolutional import Conv1D, MaxPooling1D
 from keras.optimizers import Adadelta
 from keras.regularizers import l2
 from keras.callbacks import LearningRateScheduler
@@ -60,15 +60,16 @@ def get_conv_rnn(embedding_weights, **options):
     else:
         model.add(Embedding(max_features, embedding_size, input_length=maxlen))
     model.add(Dropout(embedding_dropout))
-    model.add(Convolution1D(nb_filter=nb_filter,
-                            filter_length=filter_length,
-                            border_mode='valid',
-                            activation='tanh',
-                            subsample_length=1))
-    model.add(MaxPooling1D(pool_length=pool_length))
+    model.add(Conv1D(filters=nb_filter,
+                     kernel_size=filter_length,
+                     padding='valid',
+                     activation='tanh',
+                     strides=1))
+
+    model.add(MaxPooling1D(pool_size=pool_length))
     model.add(Dropout(0.5))
-    model.add(GRU(gru_output_size, dropout_W=gru_dropout, dropout_U=gru_dropout,
-                  W_regularizer=l2(gru_l2_coef_w), U_regularizer=l2(gru_l2_coef_u)))
+    model.add(GRU(gru_output_size, dropout=gru_dropout, recurrent_dropout=gru_dropout,
+                  kernel_regularizer=l2(gru_l2_coef_w), recurrent_regularizer=l2(gru_l2_coef_u)))
     model.add(Dropout(0.5))
     model.add(Dense(256))
     model.add(Dense(n_classes))
@@ -84,14 +85,14 @@ def train(model, X_train, y_train, X_test, y_test, **options):
     """
     Kwarg options:
         batch_size (default 32)
-        nb_epoch (default 10)
+        epochs (default 10)
     """
     # Training
     batch_size = options.get('batch_size', 32)
-    nb_epoch = options.get('nb_epoch', 10)
+    epochs = options.get('epochs', 10)
 
     print('Train...')
-    model.fit(X_train, y_train, batch_size=batch_size, nb_epoch=nb_epoch,
+    model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs,
               validation_data=(X_test, y_test), callbacks=[LearningRateScheduler(get_rate)])
     score, acc = model.evaluate(X_test, y_test, batch_size=batch_size)
     print('Test score:', score)
@@ -113,7 +114,7 @@ class KerasPipeline(Pipeline):
 
     def __init__(self, *args, **kwargs):
 
-        super_kwargs = {k: v for k, v in kwargs.iteritems() if k not in self.captured_kwargs}
+        super_kwargs = {k: v for k, v in kwargs.items() if k not in self.captured_kwargs}
         super(KerasPipeline, self).__init__(*args, **super_kwargs)
         self.keras_model_options = kwargs.get('keras_model_options', {})
         self.embedding_size = kwargs.get('embedding_size')
@@ -142,6 +143,13 @@ class KerasPipeline(Pipeline):
     def run(self, **training_options):
         (X_train, y_train, train_ids), (X_test, y_test, test_ids) = self.learning_data
         train(self.model, X_train, y_train, X_test, y_test, **training_options)
+
+    def predict(self, new_df):
+        self._set_token_data(new_df)
+        self._set_learning_data(test_split=0., max_dummy_ratio=1, **self.to_matrices_kwargs)
+        (X, y, ids), _ = self.learning_data
+        predictions = self.model.predict(X)
+        return (predictions, ids)
 
     def persist(self, name, path):
         path_for = lambda attr: os.path.join(path, '_'.join([attr, name]))  # noqa
