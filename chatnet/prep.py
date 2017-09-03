@@ -4,6 +4,7 @@ constructing fixed-length word index sequences,
 and providing embeddings from GloVe word vectors
 """
 
+import os
 import numpy as np
 from . import logger
 import re
@@ -13,7 +14,10 @@ from sklearn.preprocessing import LabelEncoder
 
 numeric_pat = re.compile('.*[\d].*')
 caps_pat = re.compile('.*[A-Z].*')
-GLOVE_VEC_TEMPLATE = '/Users/bhtucker/rc/chatnet/glove.twitter.27B/glove.twitter.27B.{dimensions}d.txt'
+GLOVE_VEC_TEMPLATE = os.env.get(
+    'GLOVE_VEC_TEMPLATE',
+    '~/chatnet/glove.twitter.27B/glove.twitter.27B.{dimensions}d.txt')
+
 GLOVE_DIMS = {25, 50, 200}
 
 
